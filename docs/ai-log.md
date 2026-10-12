@@ -11,3 +11,5 @@ Map goes straight to the answer, but Array.find checks every booking, so Map is 
 - What came back: search.js, sort.js, 50 tests, and a criteria document.
 - What was wrong: the Build 1 code did not match the teacher's rules in docs/user-stories.md. It used kobo instead of cents, had no limit of 10 tickets, used the wrong error names, and made bookings "confirmed" instead of "pending". I found this by reading the user stories.
 - What I changed: the AI fixed all four. I checked the fixes by running npm test (50 passed).
+- Stable sort: if two events tie, the one that was first stays first.
+- Search and sort make a copy. The original list stays the same.
