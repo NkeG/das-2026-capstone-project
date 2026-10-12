@@ -1,6 +1,9 @@
 import { DomainError } from "./errors.js";
 import { seatsLeft } from "./events.js";
 
+// S06 says a booking is for 1 to 10 tickets.
+export const MAX_PER_BOOKING = 10;
+
 // The BookingBook keeps every booking in a Map, keyed by reference code.
 // Map lookup by key is O(1): it goes straight to the answer.
 // Array.find is O(n): it checks one booking after another.
@@ -20,18 +23,26 @@ export class BookingBook {
   #getTier(event, tierId) {
     const tier = event.tiers.get(tierId);
     if (!tier) {
-      throw new DomainError("TIER_NOT_FOUND", `No tier "${tierId}" on this event.`);
+      throw new DomainError("NOT_FOUND", `No tier "${tierId}" on this event.`);
     }
     return tier;
   }
 
+  // S06: book tickets.
   // Capacity rule: you only get seats if enough are left. All or nothing.
+  // A new booking is "pending". Payment (which confirms it) comes in a later build.
   book(event, tierId, buyerName, quantity = 1) {
-    if (!buyerName) {
-      throw new DomainError("INVALID_BOOKING", "A booking needs a buyer name.");
+    if (typeof buyerName !== "string" || buyerName.trim() === "") {
+      throw new DomainError("VALIDATION", "A booking needs a buyer name.");
     }
-    if (!Number.isInteger(quantity) || quantity < 1) {
-      throw new DomainError("INVALID_QUANTITY", "Quantity must be a whole number, 1 or more.");
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_PER_BOOKING) {
+      throw new DomainError(
+        "VALIDATION",
+        `Quantity must be a whole number from 1 to ${MAX_PER_BOOKING}.`
+      );
+    }
+    if (event.status !== "published") {
+      throw new DomainError("NOT_PUBLISHED", "This event is not published, so it cannot be booked.");
     }
     const tier = this.#getTier(event, tierId);
     if (quantity > seatsLeft(tier)) {
@@ -47,8 +58,8 @@ export class BookingBook {
       tierId,
       buyerName,
       quantity,
-      totalKobo: tier.priceKobo * quantity,
-      status: "confirmed",
+      totalCents: tier.priceCents * quantity,
+      status: "pending",
     };
     this.#byRef.set(booking.ref, booking);
     return booking;
@@ -61,11 +72,11 @@ export class BookingBook {
 
   // Cancel a booking. The seats go back. If someone is waiting,
   // the person at the FRONT of the line is named and leaves the line.
-  // (Build 8 will turn this into a timed offer.)
+  // (A later build will turn this into a timed offer.)
   cancel(event, ref) {
     const booking = this.#byRef.get(ref);
     if (!booking) {
-      throw new DomainError("BOOKING_NOT_FOUND", `No booking with code ${ref}.`);
+      throw new DomainError("NOT_FOUND", `No booking with code ${ref}.`);
     }
     if (booking.status === "cancelled") {
       throw new DomainError("ALREADY_CANCELLED", `Booking ${ref} is already cancelled.`);
@@ -79,8 +90,8 @@ export class BookingBook {
 
   // Only a sold-out tier has a waitlist.
   joinWaitlist(event, tierId, name) {
-    if (!name) {
-      throw new DomainError("INVALID_WAITLIST", "A waitlist entry needs a name.");
+    if (typeof name !== "string" || name.trim() === "") {
+      throw new DomainError("VALIDATION", "A waitlist entry needs a name.");
     }
     const tier = this.#getTier(event, tierId);
     if (seatsLeft(tier) > 0) {
@@ -89,7 +100,7 @@ export class BookingBook {
         `${tier.name} still has ${seatsLeft(tier)} seats. Book instead of waiting.`
       );
     }
-    tier.waitlist.enqueue({ name, joinedAt: tier.waitlist.size + 1 });
+    tier.waitlist.enqueue({ name });
     return tier.waitlist.size; // your place in line
   }
 

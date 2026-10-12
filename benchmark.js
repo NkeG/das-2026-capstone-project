@@ -1,12 +1,19 @@
-import { createEvent, addTier } from "./src/events.js";
+import { createEvent, addTier, publishEvent } from "./src/events.js";
 import { BookingBook } from "./src/bookings.js";
 
 const BOOKINGS = 50_000;
 const LOOKUPS = 2_000;
 
 // Build a big pile of bookings.
-const event = createEvent({ id: "big", name: "Big Event", city: "Lagos", date: "2026-12-31" });
-addTier(event, { id: "ga", name: "General", priceKobo: 500000, capacity: BOOKINGS });
+const event = createEvent({
+  id: "big",
+  title: "Big Event",
+  city: "Lagos",
+  venue: "Big Arena",
+  date: "2026-12-31",
+});
+addTier(event, { id: "ga", name: "General", priceCents: 500000, capacity: BOOKINGS });
+publishEvent(event);
 const book = new BookingBook();
 for (let i = 0; i < BOOKINGS; i++) book.book(event, "ga", "Guest " + i, 1);
 

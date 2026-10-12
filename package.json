@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "demo": "node demo.js",
-    "benchmark": "node benchmark.js"
+    "demo:search": "node demo-search.js",
+    "benchmark": "node benchmark.js",
+    "test": "node --test"
   }
 }

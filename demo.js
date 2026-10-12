@@ -1,4 +1,4 @@
-import { createEvent, addTier, seatsLeft, formatNaira } from "./src/events.js";
+import { createEvent, addTier, publishEvent, seatsLeft, formatMoney } from "./src/events.js";
 import { BookingBook } from "./src/bookings.js";
 import { DomainError } from "./src/errors.js";
 
@@ -10,12 +10,14 @@ const book = new BookingBook();
 title("1. Create an event with one small tier");
 const event = createEvent({
   id: "ev-1",
-  name: "Lagos Tech Night",
+  title: "Lagos Tech Night",
   city: "Lagos",
+  venue: "Landmark Centre",
   date: "2026-12-05",
 });
-const vip = addTier(event, { id: "vip", name: "VIP", priceKobo: 1500000, capacity: 3 });
-line(`${event.name} in ${event.city}. ${vip.name} costs ${formatNaira(vip.priceKobo)}, ${vip.capacity} seats.`);
+const vip = addTier(event, { id: "vip", name: "VIP", priceCents: 1500000, capacity: 3 });
+publishEvent(event);
+line(`${event.title} in ${event.city}. ${vip.name} costs ${formatMoney(vip.priceCents)}, ${vip.capacity} seats.`);
 
 title("2. The tier sells out");
 const ada = book.book(event, "vip", "Ada", 1);
@@ -38,7 +40,7 @@ line(`Line now: ${vip.waitlist.toArray().map((p) => p.name).join(" -> ")}`);
 
 title("5. Look up a booking by its code");
 const found = book.find(bola.ref);
-line(`${bola.ref} belongs to ${found.buyerName}: ${found.quantity} seats, ${formatNaira(found.totalKobo)}.`);
+line(`${bola.ref} belongs to ${found.buyerName}: ${found.quantity} seats, ${formatMoney(found.totalCents)}, ${found.status}.`);
 
 title("6. A booking is cancelled");
 const result = book.cancel(event, ada.ref);
