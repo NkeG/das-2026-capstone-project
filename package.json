@@ -8,6 +8,7 @@
     "demo": "node demo.js",
     "demo:search": "node demo-search.js",
     "demo:states": "node demo-states.js",
+    "demo:api": "node demo-api.js",
     "benchmark": "node benchmark.js",
     "test": "node --test"
   }

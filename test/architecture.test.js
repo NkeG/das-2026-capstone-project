@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 //   rules     src/*.js            the business rules. They import only other rules.
 //   data      src/data/*.js       keeping things. Imports rules.
 //   services  src/services/*.js   things a person does. Imports rules (the store is passed in).
-//   routes    src/routes/*.js     HTTP. Imports only other routes.
+//   routes    src/routes/*.js     HTTP. Imports other routes and services (never rules or data).
 //   server    src/server.js       wires the layers together.
 
 const SRC = fileURLToPath(new URL("../src/", import.meta.url));
@@ -19,7 +19,7 @@ const ALLOWED = {
   rules: ["rules"],
   data: ["rules", "data"],
   services: ["rules", "services"],
-  routes: ["routes"],
+  routes: ["routes", "services"],
   server: ["routes", "services", "data", "rules", "server"],
 };
 
@@ -102,6 +102,16 @@ describe("architecture: the checker really catches mistakes", () => {
   test("a route that reaches into the data layer is caught", () => {
     const bad = [fake("routes/bad.js", "routes", ["../data/memoryStore.js"])];
     assert.equal(findViolations(bad).length, 1);
+  });
+
+  test("a route that imports a rule directly is caught (it must go through a service)", () => {
+    const bad = [fake("routes/bad.js", "routes", ["../events.js"])];
+    assert.equal(findViolations(bad).length, 1);
+  });
+
+  test("a route may import a service", () => {
+    const fine = [fake("routes/ok.js", "routes", ["../services/errors.js"])];
+    assert.deepEqual(findViolations(fine), []);
   });
 
   test("a rule that reaches up into a service is caught", () => {

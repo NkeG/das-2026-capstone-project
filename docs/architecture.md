@@ -1,4 +1,4 @@
-# Architecture (Build 3)
+# Architecture (Build 4)
 
 This page shows how the project is organised: what each part is for, which part may talk to which, and what happens when a request arrives.
 
@@ -10,7 +10,7 @@ Taken from `docs/user-stories.md`.
 - An organizer creates an event with title, city, venue and date (S02), adds ticket tiers (S03), and publishes or unpublishes it (S04).
 - An attendee searches, filters and sorts published events (S05), and books tickets (S06).
 - A booking has a life cycle: pending, then paid, cancelled, expired or refunded (see `docs/booking-states.md`).
-- The server answers `/health` and serves the website files in `public/`.
+- The server answers `/health`, serves the website files in `public/`, and offers a REST API under `/api` (events, tiers, publish, search, booking, mock payment, cancel unpaid). See `docs/api-examples.md`.
 
 **Qualities (how it must behave)**
 - Money is a whole number of cents. Never decimals.
@@ -25,8 +25,8 @@ Each layer has one job. A layer may only use the layers listed in the last colum
 
 | Layer | Folder | Its job | May import |
 |---|---|---|---|
-| **Routes** | `src/routes/` | Read the address and method. Send the reply. No business rules, no storage. | routes |
-| **Services** | `src/services/` | One function per thing a person does, like "book" or "publish". | rules |
+| **Routes** | `src/routes/` | Read the address, method and JSON body. Ask a service. Send the reply. No business rules, no storage. | routes, services |
+| **Services** | `src/services/` | One function per thing a person does, like "book" or "publish". | rules, services |
 | **Rules** | `src/*.js` | The business rules: events, bookings, booking states, search, sort, the waitlist queue. | rules |
 | **Data** | `src/data/` | Keeps things. Right now in memory. | rules |
 
@@ -39,7 +39,7 @@ flowchart TD
     Client["Browser or curl"] -->|"HTTP request"| Server["server.js<br/>plugs the layers together"]
     Server --> Routes["ROUTES<br/>src/routes/<br/>read the address, send the reply"]
     Routes --> Public["public/<br/>website files"]
-    Routes -.->|"from Build 4"| Services["SERVICES<br/>src/services/<br/>things a person does"]
+    Routes -->|"API calls"| Services["SERVICES<br/>src/services/<br/>things a person does"]
     Services --> Rules["RULES<br/>src/*.js<br/>events, bookings, booking states,<br/>search, sort, waitlist queue"]
     Services -.->|"store is passed in"| Data["DATA<br/>src/data/<br/>keeps events and bookings in memory"]
     Data --> Rules
@@ -51,22 +51,27 @@ A picture of this diagram is also saved as `docs/architecture.png`, in case your
 
 ## What happens when a request arrives
 
-Example: `GET /health`
+Example: `POST /api/bookings` (book 2 seats)
 
-1. The browser sends the request to the server.
-2. `server.js` hands it to the router in `src/routes/index.js`.
-3. The router checks the method. Only GET and HEAD are allowed. Anything else gets a 405.
-4. The address is `/health`, so `src/routes/health.js` answers `200 {"status":"ok"}`.
+1. curl sends the request to the server.
+2. `server.js` hands it to the router in `src/routes/index.js`. The address starts with `/api`, so it goes to `src/routes/api.js`.
+3. `api.js` finds the matching row in its route table, and `body.js` reads the JSON (too big gives 413, wrong type 415, broken JSON 400).
+4. The route calls `bookings.book(...)` in `src/services/bookingService.js`.
+5. The service asks the rules (`src/bookings.js`) to decide: published? enough seats? Then the store keeps the result.
+6. The route turns the booking into a safe reply with `present.js` and sends `201` plus a `Location` header.
+7. If anything threw an error, `src/routes/errors.js` turns its code into a status (`SOLD_OUT` gives 409) and sends the standard error shape.
+
+Example: `GET /health`. The router answers it directly with `200 {"status":"ok"}`.
 
 Any other address goes to `src/routes/static.js`. It turns the address into a file path, checks the path is still inside `public/`, and sends the file. If there is no such file, the reply is a 404 in the standard error shape.
 
 ## What exists now, and what comes later
 
-| Part | Build 3 (now) | Later |
+| Part | Build 4 (now) | Later |
 |---|---|---|
-| Routes | `/health` and static files | Build 4: the REST API calls the services |
-| Services | Event and booking services, tested | Build 4: routes call them |
-| Rules | Complete for events, bookings, search, sort, states | Build 8: refund amount, waitlist offers, expiry |
+| Routes | `/health`, static files and the REST API under `/api` | Build 6: the frontend calls the API; Build 7: login checks |
+| Services | Event and booking services, mock payment, used by the routes | Build 8: refunds, waitlist offers |
+| Rules | Events, bookings, search, sort, states, mock payment | Build 8: refund amount, waitlist offers, expiry |
 | Data | In memory | Build 5: SQLite |
 
 ## Decisions and shortcuts
@@ -79,3 +84,11 @@ Any other address goes to `src/routes/static.js`. It turns the address into a fi
 ## How the layering is protected
 
 `test/architecture.test.js` reads every file in `src/`, looks at what it imports, and fails if a layer imports something it should not. It also fails if any file imports an outside package. The test also proves its own checker works, by feeding it deliberately bad examples.
+
+## Decisions made in Build 4
+
+- **Routes may import services, never rules.** So the error class is re-exported by `src/services/errors.js`. `test/architecture.test.js` proves a route importing a rule is caught.
+- **Presenters pick fields by name** (`src/routes/present.js`). The waitlist (other people's names) can never leak by accident.
+- **The server makes event ids** (`EV-000001`). A client-sent `id` is ignored.
+- **One table maps every error code to a status** (`src/routes/errors.js`). A test scans the source and fails if a code has no status.
+- **Known shortcut:** `GET /api/events/:id` shows drafts too. Build 7 (login) restricts that to the organizer.

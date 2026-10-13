@@ -10,9 +10,16 @@ import { DomainError } from "../errors.js";
 export function createMemoryStore() {
   const events = new Map();
   const bookings = new BookingBook();
+  let eventCounter = 0;
 
   return {
     bookings,
+
+    // The server hands out event ids: EV-000001, EV-000002, ...
+    nextEventId() {
+      eventCounter += 1;
+      return `EV-${String(eventCounter).padStart(6, "0")}`;
+    },
 
     saveEvent(event) {
       events.set(event.id, event);

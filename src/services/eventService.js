@@ -8,15 +8,30 @@ import { DomainError } from "../errors.js";
 // and asks the store (passed in) to keep things.
 export function createEventService(store) {
   return {
+    // If the caller gives no id, the store makes one (EV-000001, ...).
     create(input) {
+      if (input !== null && typeof input === "object" && input.id === undefined) {
+        input = { ...input, id: store.nextEventId() };
+      }
       if (store.getEvent(input?.id)) {
         throw new DomainError("VALIDATION", `An event with id "${input.id}" already exists.`);
       }
       return store.saveEvent(createEvent(input));
     },
 
+    get(eventId) {
+      return store.requireEvent(eventId);
+    },
+
+    // If the caller gives no tier id, we use T1, T2, ... for this event.
     addTier(eventId, tier) {
-      return addTier(store.requireEvent(eventId), tier);
+      const event = store.requireEvent(eventId);
+      if (tier !== null && typeof tier === "object" && tier.id === undefined) {
+        let n = event.tiers.size + 1;
+        while (event.tiers.has(`T${n}`)) n += 1;
+        tier = { ...tier, id: `T${n}` };
+      }
+      return addTier(event, tier);
     },
 
     publish(eventId) {

@@ -1,4 +1,4 @@
-# Booking life cycle (Build 3)
+# Booking life cycle (Build 4)
 
 A booking is always in exactly one state. Something happens to it (an **event**), and the state changes. If a move is not in the table, it is refused.
 
@@ -63,9 +63,14 @@ A dash means the move is refused with `INVALID_STATE`.
 
 | Part | Build |
 |---|---|
-| The table, and the PAY and CANCEL moves in `BookingBook` | 3 (now) |
-| The mock payment (a pretend card) and the API calls | 4 |
+| The table, and the PAY and CANCEL moves in `BookingBook` | 3 |
+| The mock payment (a pretend card) and the API calls | 4 (now) |
 | The refund amount, based on how close the event is | 8 |
 | The EXPIRE move being triggered automatically after a time | 8 |
 
 The `EXPIRE` move is already in the table, so Build 8 only has to trigger it.
+
+## How the API uses it (Build 4)
+
+- `POST /api/bookings/:ref/pay` asks the table first ("is PAY allowed?"), then charges the mock card, then moves the booking to `paid`. A declined card (`tok_declined`) leaves the booking `pending`.
+- `POST /api/bookings/:ref/cancel` only cancels **unpaid** bookings. A paid booking gets `INVALID_STATE` ("needs a refund"), because refunds are built in Build 8.
