@@ -4,8 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "node start.js",
     "demo": "node demo.js",
     "demo:search": "node demo-search.js",
+    "demo:states": "node demo-states.js",
     "benchmark": "node benchmark.js",
     "test": "node --test"
   }

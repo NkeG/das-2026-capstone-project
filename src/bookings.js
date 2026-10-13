@@ -1,5 +1,6 @@
 import { DomainError } from "./errors.js";
 import { seatsLeft } from "./events.js";
+import { INITIAL_STATE, nextState, holdsSeats } from "./bookingStates.js";
 
 // S06 says a booking is for 1 to 10 tickets.
 export const MAX_PER_BOOKING = 10;
@@ -7,6 +8,9 @@ export const MAX_PER_BOOKING = 10;
 // The BookingBook keeps every booking in a Map, keyed by reference code.
 // Map lookup by key is O(1): it goes straight to the answer.
 // Array.find is O(n): it checks one booking after another.
+//
+// Every status change goes through the state machine in bookingStates.js.
+// This file never writes a status by hand, so an illegal move cannot slip through.
 export class BookingBook {
   #byRef = new Map();
   #counter = 0;
@@ -30,7 +34,7 @@ export class BookingBook {
 
   // S06: book tickets.
   // Capacity rule: you only get seats if enough are left. All or nothing.
-  // A new booking is "pending". Payment (which confirms it) comes in a later build.
+  // A new booking starts "pending". Paying it moves it to "paid".
   book(event, tierId, buyerName, quantity = 1) {
     if (typeof buyerName !== "string" || buyerName.trim() === "") {
       throw new DomainError("VALIDATION", "A booking needs a buyer name.");
@@ -59,7 +63,7 @@ export class BookingBook {
       buyerName,
       quantity,
       totalCents: tier.priceCents * quantity,
-      status: "pending",
+      status: INITIAL_STATE,
     };
     this.#byRef.set(booking.ref, booking);
     return booking;
@@ -70,20 +74,40 @@ export class BookingBook {
     return this.#byRef.get(ref);
   }
 
-  // Cancel a booking. The seats go back. If someone is waiting,
-  // the person at the FRONT of the line is named and leaves the line.
-  // (A later build will turn this into a timed offer.)
-  cancel(event, ref) {
+  // Mock payment. Only the state change happens here: pending -> paid.
+  // (The pretend card and the API call come in Build 4.)
+  // Paying a cancelled, expired, refunded or already paid booking is refused.
+  pay(ref) {
     const booking = this.#byRef.get(ref);
     if (!booking) {
       throw new DomainError("NOT_FOUND", `No booking with code ${ref}.`);
     }
-    if (booking.status === "cancelled") {
+    booking.status = nextState(booking.status, "PAY"); // throws INVALID_STATE if not allowed
+    return booking;
+  }
+
+  // Cancel a booking. pending -> cancelled, or paid -> refunded.
+  // The seats go back. If someone is waiting, the person at the FRONT of the line
+  // is named and leaves the line. (The refund AMOUNT and timed offers come in Build 8.)
+  cancel(event, ref) {
+    const booking = this.#byRef.get(ref);
+    // A booking belongs to one event. Asking another event to cancel it is a mistake.
+    if (!booking || booking.eventId !== event.id) {
+      throw new DomainError("NOT_FOUND", `No booking with code ${ref}.`);
+    }
+    if (booking.status === "cancelled" || booking.status === "refunded") {
       throw new DomainError("ALREADY_CANCELLED", `Booking ${ref} is already cancelled.`);
     }
     const tier = this.#getTier(event, booking.tierId);
-    booking.status = "cancelled";
-    tier.sold -= booking.quantity; // seats released exactly once, because of the check above
+    const wasHoldingSeats = holdsSeats(booking.status);
+    // Work out the next state FIRST. If the move is illegal this throws,
+    // and nothing has been changed yet.
+    const next = nextState(booking.status, "CANCEL");
+    booking.status = next;
+    // Seats are given back exactly once: only when leaving a seat-holding state.
+    if (wasHoldingSeats && !holdsSeats(next)) {
+      tier.sold -= booking.quantity;
+    }
     const nextInLine = tier.waitlist.dequeue() ?? null;
     return { booking, nextInLine };
   }

@@ -24,7 +24,11 @@ export function isValidIsoDate(text) {
 }
 
 // S02: an event has a title, city, venue and date. It starts as a draft.
-export function createEvent({ id, title, city, venue, date }) {
+export function createEvent(input) {
+  if (input === null || typeof input !== "object") {
+    throw new DomainError("VALIDATION", "An event needs an id, title, city, venue and date.");
+  }
+  const { id, title, city, venue, date } = input;
   if (!isFilled(id) || !isFilled(title) || !isFilled(city) || !isFilled(venue)) {
     throw new DomainError("VALIDATION", "An event needs an id, title, city and venue.");
   }
@@ -35,7 +39,11 @@ export function createEvent({ id, title, city, venue, date }) {
 }
 
 // S03: a tier has a price (whole cents) and a capacity (whole seats).
-export function addTier(event, { id, name, priceCents, capacity }) {
+export function addTier(event, input) {
+  if (input === null || typeof input !== "object") {
+    throw new DomainError("VALIDATION", "A tier needs an id, name, price and capacity.");
+  }
+  const { id, name, priceCents, capacity } = input;
   if (!isFilled(id) || !isFilled(name)) {
     throw new DomainError("VALIDATION", "A tier needs an id and a name.");
   }

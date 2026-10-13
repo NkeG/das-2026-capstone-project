@@ -13,3 +13,9 @@ Map goes straight to the answer, but Array.find checks every booking, so Map is 
 - What I changed: the AI fixed all four. I checked the fixes by running npm test (50 passed).
 - Stable sort: if two events tie, the one that was first stays first.
 - Search and sort make a copy. The original list stays the same.
+## Build 3
+- I asked: for Build 3 (state machine, layered design, server skeleton).
+- What came back: a booking state machine, routes/services/rules/data layers, a server with /health, and two diagrams.
+- What was wrong: the AI's own tests found 3 problems. createEvent crashed with a TypeError when given nothing. A booking could be cancelled through the wrong event. The first safety check for the static server did not cover Windows backslash paths.
+- The AI also put a folder named src/data, and the course .gitignore ignores any folder called data, so Git did not see it. I found it in git status and fixed it with !src/data/ in .gitignore.
+- What I changed: the AI fixed all of these and added tests for each. I checked by running npm test (139 passed) and by opening /health in the browser.

@@ -16,8 +16,9 @@ function isWholeCents(n) {
 //   dateTo         latest date, like "2026-12-31"
 //   minPriceCents  the event's cheapest tier must cost at least this
 //   maxPriceCents  the event's cheapest tier must cost at most this
-export function searchEvents(events, filters = {}) {
-  const { text, city, dateFrom, dateTo, minPriceCents, maxPriceCents } = filters;
+export function searchEvents(events, filters) {
+  // No filters at all (undefined or null) means "show everything that is published".
+  const { text, city, dateFrom, dateTo, minPriceCents, maxPriceCents } = filters ?? {};
 
   if (dateFrom != null && !isValidIsoDate(dateFrom)) {
     throw new DomainError("VALIDATION", "dateFrom must look like 2026-12-01.");
