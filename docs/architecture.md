@@ -1,4 +1,4 @@
-# Architecture (Build 4)
+# Architecture (Build 5)
 
 This page shows how the project is organised: what each part is for, which part may talk to which, and what happens when a request arrives.
 
@@ -10,6 +10,7 @@ Taken from `docs/user-stories.md`.
 - An organizer creates an event with title, city, venue and date (S02), adds ticket tiers (S03), and publishes or unpublishes it (S04).
 - An attendee searches, filters and sorts published events (S05), and books tickets (S06).
 - A booking has a life cycle: pending, then paid, cancelled, expired or refunded (see `docs/booking-states.md`).
+- Data is stored in SQLite and survives a restart (see `docs/database.md`). Two people can never buy the same last ticket (see `docs/overselling.md`).
 - The server answers `/health`, serves the website files in `public/`, and offers a REST API under `/api` (events, tiers, publish, search, booking, mock payment, cancel unpaid). See `docs/api-examples.md`.
 
 **Qualities (how it must behave)**
@@ -28,7 +29,7 @@ Each layer has one job. A layer may only use the layers listed in the last colum
 | **Routes** | `src/routes/` | Read the address, method and JSON body. Ask a service. Send the reply. No business rules, no storage. | routes, services |
 | **Services** | `src/services/` | One function per thing a person does, like "book" or "publish". | rules, services |
 | **Rules** | `src/*.js` | The business rules: events, bookings, booking states, search, sort, the waitlist queue. | rules |
-| **Data** | `src/data/` | Keeps things. Right now in memory. | rules |
+| **Data** | `src/data/` | Keeps things: in a SQLite file (`sqliteStore.js`), or in memory for quick tests (`memoryStore.js`). | rules |
 
 `src/server.js` is not a layer. It only plugs the layers together. `start.js` starts it.
 
@@ -41,7 +42,7 @@ flowchart TD
     Routes --> Public["public/<br/>website files"]
     Routes -->|"API calls"| Services["SERVICES<br/>src/services/<br/>things a person does"]
     Services --> Rules["RULES<br/>src/*.js<br/>events, bookings, booking states,<br/>search, sort, waitlist queue"]
-    Services -.->|"store is passed in"| Data["DATA<br/>src/data/<br/>keeps events and bookings in memory"]
+    Services -.->|"store is passed in"| Data["DATA<br/>src/data/<br/>keeps events and bookings in SQLite"]
     Data --> Rules
 ```
 
@@ -67,18 +68,21 @@ Any other address goes to `src/routes/static.js`. It turns the address into a fi
 
 ## What exists now, and what comes later
 
-| Part | Build 4 (now) | Later |
+| Part | Build 5 (now) | Later |
 |---|---|---|
 | Routes | `/health`, static files and the REST API under `/api` | Build 6: the frontend calls the API; Build 7: login checks |
 | Services | Event and booking services, mock payment, used by the routes | Build 8: refunds, waitlist offers |
 | Rules | Events, bookings, search, sort, states, mock payment | Build 8: refund amount, waitlist offers, expiry |
-| Data | In memory | Build 5: SQLite |
+| Data | SQLite file (memory store kept for tests) | Build 7: users table |
 
 ## Decisions and shortcuts
 
 - **The rules files stay in `src/`.** I did not move the Build 1 and 2 files into a `rules/` folder. Moving them would break the imports and the tests for no gain. The rule is "every file directly in `src/` is a rules file".
 - **The store is passed in.** Services receive the store as a parameter instead of importing it. That keeps services free of storage details, and every test gets a fresh, empty store.
-- **A known shortcut.** `BookingBook` (a rules file) still keeps its own `Map` of bookings. Build 5 moves that into the data layer when SQLite arrives.
+- **Two stores, one promise.** `memoryStore.js` and `sqliteStore.js` offer the same functions. `test/sqlite.test.js` runs the same steps on both and demands the same answers, including the same error messages. The whole API test suite also runs on both.
+- **`updateEvent`: look, change, save as one step.** Services never do "load, change, save later" on their own, because two requests at the same moment could overwrite each other.
+- **The store never trusts the copy of an event it is handed** when booking. It checks the database again inside a transaction.
+- **Known shortcut:** `BookingBook` (the in-memory rules class) still exists for the memory store and the Build 1 to 3 tests. The SQLite store does the same job with SQL.
 - **No framework.** The server uses Node's built-in `http` module, because the project allows no outside packages.
 
 ## How the layering is protected

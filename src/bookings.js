@@ -5,6 +5,20 @@ import { INITIAL_STATE, nextState, holdsSeats } from "./bookingStates.js";
 // S06 says a booking is for 1 to 10 tickets.
 export const MAX_PER_BOOKING = 10;
 
+// The first two checks of S06: a name, and a quantity from 1 to 10.
+// Shared by the in-memory BookingBook and the SQLite store, so both say the same thing.
+export function checkBookingRequest(buyerName, quantity) {
+  if (typeof buyerName !== "string" || buyerName.trim() === "") {
+    throw new DomainError("VALIDATION", "A booking needs a buyer name.");
+  }
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_PER_BOOKING) {
+    throw new DomainError(
+      "VALIDATION",
+      `Quantity must be a whole number from 1 to ${MAX_PER_BOOKING}.`
+    );
+  }
+}
+
 // The BookingBook keeps every booking in a Map, keyed by reference code.
 // Map lookup by key is O(1): it goes straight to the answer.
 // Array.find is O(n): it checks one booking after another.
@@ -36,15 +50,7 @@ export class BookingBook {
   // Capacity rule: you only get seats if enough are left. All or nothing.
   // A new booking starts "pending". Paying it moves it to "paid".
   book(event, tierId, buyerName, quantity = 1) {
-    if (typeof buyerName !== "string" || buyerName.trim() === "") {
-      throw new DomainError("VALIDATION", "A booking needs a buyer name.");
-    }
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity > MAX_PER_BOOKING) {
-      throw new DomainError(
-        "VALIDATION",
-        `Quantity must be a whole number from 1 to ${MAX_PER_BOOKING}.`
-      );
-    }
+    checkBookingRequest(buyerName, quantity);
     if (event.status !== "published") {
       throw new DomainError("NOT_PUBLISHED", "This event is not published, so it cannot be booked.");
     }

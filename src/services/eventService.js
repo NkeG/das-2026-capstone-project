@@ -24,22 +24,24 @@ export function createEventService(store) {
     },
 
     // If the caller gives no tier id, we use T1, T2, ... for this event.
+    // updateEvent does the whole look-change-save as one step.
     addTier(eventId, tier) {
-      const event = store.requireEvent(eventId);
-      if (tier !== null && typeof tier === "object" && tier.id === undefined) {
-        let n = event.tiers.size + 1;
-        while (event.tiers.has(`T${n}`)) n += 1;
-        tier = { ...tier, id: `T${n}` };
-      }
-      return addTier(event, tier);
+      return store.updateEvent(eventId, (event) => {
+        if (tier !== null && typeof tier === "object" && tier.id === undefined) {
+          let n = event.tiers.size + 1;
+          while (event.tiers.has(`T${n}`)) n += 1;
+          tier = { ...tier, id: `T${n}` };
+        }
+        return addTier(event, tier);
+      });
     },
 
     publish(eventId) {
-      return publishEvent(store.requireEvent(eventId));
+      return store.updateEvent(eventId, publishEvent);
     },
 
     unpublish(eventId) {
-      return unpublishEvent(store.requireEvent(eventId));
+      return store.updateEvent(eventId, unpublishEvent);
     },
 
     // Search and (optionally) sort. Never changes the stored list.

@@ -17,6 +17,7 @@ export const STATUS_BY_CODE = {
   ALREADY_CANCELLED: 409,
   PAYLOAD_TOO_LARGE: 413,
   UNSUPPORTED_MEDIA_TYPE: 415,
+  BUSY: 503,
 };
 
 // A thrown error comes here. Known problems get their own status.

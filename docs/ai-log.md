@@ -51,3 +51,10 @@ Build a working REST API for the event ticketing project. It should let me creat
 **Known shortcuts for later:**
 - A draft event can still be looked up by its id. Build 7 (login) will restrict that.
 - Paid bookings cannot be cancelled yet. Refunds come in Build 8.
+## Build 5: SQLite and the overselling fix
+
+What I asked the AI: store the data in SQLite, reproduce the last-ticket problem, and fix it so 50 people trying for the last ticket gives exactly one winner.
+What it produced: a SQLite store, one atomic “take the seat only if there is room” step inside a transaction, a CHECK constraint as a safety net, a script that shows the bug and the fix, and 79 new tests.
+What I checked myself: npm test (267 pass), npm run demo:oversell, the curl examples, and a restart (data was still there).
+What the AI got wrong: (1) my first idea for the test would never have failed, because Node’s SQLite is synchronous and one process can’t race itself. The AI changed it to use separate database connections and a test with an old copy of the event. (2) The first version of “save event” could overwrite bookings made a moment earlier with an old copy. A test caught it, and the AI fixed it so only bookings can change sold. (3) A mutation check showed the “pay” step in the store was not tested on its own, so a test was added.
+What I learned: a check and a write must be one step. A database can refuse bad data itself (constraints). A test must be able to fail, or it proves nothing.

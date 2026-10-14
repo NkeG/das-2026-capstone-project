@@ -1,5 +1,15 @@
+import fs from "node:fs";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "./src/server.js";
+
+// SQLite is built into Node from version 22.13. Say so clearly if Node is older.
+const [major, minor] = process.versions.node.split(".").map(Number);
+if (major < 22 || (major === 22 && minor < 13)) {
+  console.error(`This project needs Node 22.13 or newer. You have ${process.versions.node}.`);
+  process.exit(1);
+}
+const { createSqliteStore } = await import("./src/data/sqliteStore.js");
 
 const publicDir = fileURLToPath(new URL("./public", import.meta.url));
 const port = Number(process.env.PORT ?? 3000);
@@ -9,7 +19,20 @@ if (!Number.isInteger(port) || port < 1 || port > 65535) {
   process.exit(1);
 }
 
-const server = createServer({ publicDir });
+// Where the data lives. The default is data/tickets.sqlite inside the project (not committed to Git).
+// DB_FILE=:memory: gives a throw-away database that starts empty and is lost when you stop.
+const dbFile = process.env.DB_FILE || fileURLToPath(new URL("./data/tickets.sqlite", import.meta.url));
+if (dbFile !== ":memory:") fs.mkdirSync(path.dirname(path.resolve(dbFile)), { recursive: true });
+
+let store;
+try {
+  store = createSqliteStore(dbFile);
+} catch (err) {
+  console.error(`Could not open the database "${dbFile}": ${err.message}`);
+  process.exit(1);
+}
+
+const server = createServer({ publicDir, store });
 
 server.on("error", (err) => {
   if (err.code === "EADDRINUSE") {
@@ -17,18 +40,23 @@ server.on("error", (err) => {
   } else {
     console.error(err);
   }
+  store.close();
   process.exit(1);
 });
 
 server.listen(port, () => {
   console.log(`Server is running.`);
-  console.log(`  Website: http://localhost:${port}/`);
-  console.log(`  Health:  http://localhost:${port}/health`);
+  console.log(`  Website:  http://localhost:${port}/`);
+  console.log(`  Health:   http://localhost:${port}/health`);
+  console.log(`  Database: ${dbFile === ":memory:" ? "in memory (lost when you stop)" : path.resolve(dbFile)}`);
   console.log(`Press Ctrl + C to stop.`);
 });
 
 process.on("SIGINT", () => {
   console.log("\nStopping the server.");
-  server.close(() => process.exit(0));
+  server.close(() => {
+    store.close();
+    process.exit(0);
+  });
   server.closeAllConnections();
 });

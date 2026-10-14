@@ -40,5 +40,15 @@ export function createMemoryStore() {
     listEvents() {
       return [...events.values()];
     },
+
+    // Same promise as the SQLite store: find the event, change it, keep it.
+    updateEvent(id, change) {
+      const event = this.requireEvent(id);
+      const result = change(event);
+      events.set(event.id, event);
+      return result;
+    },
+
+    close() {},
   };
 }

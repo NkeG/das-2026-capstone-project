@@ -7,8 +7,13 @@ export function formatMoney(cents) {
   return "N" + (cents / 100).toLocaleString("en-NG", { minimumFractionDigits: 2 });
 }
 
+// The database stores whole numbers in 64 bits, and JavaScript is only exact up to
+// 9,007,199,254,740,991. So prices and capacities have sensible upper limits.
+export const MAX_PRICE_CENTS = 100_000_000_000; // N1,000,000,000.00
+export const MAX_CAPACITY = 1_000_000;
+
 function isWholeNumber(n) {
-  return Number.isInteger(n);
+  return Number.isSafeInteger(n);
 }
 
 function isFilled(text) {
@@ -47,11 +52,14 @@ export function addTier(event, input) {
   if (!isFilled(id) || !isFilled(name)) {
     throw new DomainError("VALIDATION", "A tier needs an id and a name.");
   }
-  if (!isWholeNumber(priceCents) || priceCents < 0) {
-    throw new DomainError("VALIDATION", "Price must be a whole number of cents, 0 or more.");
+  if (!isWholeNumber(priceCents) || priceCents < 0 || priceCents > MAX_PRICE_CENTS) {
+    throw new DomainError(
+      "VALIDATION",
+      `Price must be a whole number of cents, from 0 to ${MAX_PRICE_CENTS}.`
+    );
   }
-  if (!isWholeNumber(capacity) || capacity < 1) {
-    throw new DomainError("VALIDATION", "Capacity must be a whole number, 1 or more.");
+  if (!isWholeNumber(capacity) || capacity < 1 || capacity > MAX_CAPACITY) {
+    throw new DomainError("VALIDATION", `Capacity must be a whole number, from 1 to ${MAX_CAPACITY}.`);
   }
   if (event.tiers.has(id)) {
     throw new DomainError("VALIDATION", `Tier "${id}" already exists on this event.`);

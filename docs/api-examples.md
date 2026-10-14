@@ -1,13 +1,15 @@
 # API examples
 
-Every call below is a real `curl` command that works against this project (Build 4).
+Every call below is a real `curl` command that works against this project (Build 5).
 The answers shown were captured from a real run, and `npm test` replays every one of
 them (see `test/api-examples.test.js`), so this page cannot drift from the code.
 
 ## How to use this page
 
-1. Open a Command Prompt in the project folder and start a **fresh** server: `npm start`
-   (it keeps everything in memory, so a restart wipes it).
+1. Open a Command Prompt in the project folder and start a **fresh, empty** server:
+   `set DB_FILE=:memory:&& npm start`
+   (Since Build 5 the normal `npm start` keeps your data in a file, so the event ids would not
+   start at `EV-000001` again. `DB_FILE=:memory:` gives a clean throw-away database.)
 2. Open a **second** Command Prompt in the same folder.
 3. Run the examples **in order, from 1 to 22**. Later examples use things made by earlier ones.
 4. Add `-i` after `curl` to also see the status line, for example `curl -i "http://localhost:3000/health"`.
@@ -29,6 +31,7 @@ The example JSON bodies live in `docs/api-examples/`, so run the commands from t
 | 404 | `NOT_FOUND` | No such event, tier, booking or address |
 | 405 | `METHOD_NOT_ALLOWED` | Wrong method for that address (see the `Allow` header) |
 | 409 | `SOLD_OUT`, `NOT_PUBLISHED`, `INVALID_STATE`, `ALREADY_CANCELLED` | The request is fine, but not allowed right now |
+| 503 | `BUSY` | The database stayed locked for too long. Try again. |
 | 413 | `PAYLOAD_TOO_LARGE` | The body is over 100,000 bytes |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | Send JSON with `Content-Type: application/json` |
 
