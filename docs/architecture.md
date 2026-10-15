@@ -96,3 +96,8 @@ Any other address goes to `src/routes/static.js`. It turns the address into a fi
 - **The server makes event ids** (`EV-000001`). A client-sent `id` is ignored.
 - **One table maps every error code to a status** (`src/routes/errors.js`). A test scans the source and fails if a code has no status.
 - **Known shortcut:** `GET /api/events/:id` shows drafts too. Build 7 (login) restricts that to the organizer.
+
+## The website (added in Build 6)
+`public/` is the front door for people. It is NOT part of `src/` and does not import from it.
+Inside it, only `public/js/api.js` gets data (fake for now, real `/api` calls in Build 7).
+Pages -> `api.js` -> (Build 7) the REST API -> services -> data. See `docs/frontend.md`.

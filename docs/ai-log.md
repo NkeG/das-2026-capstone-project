@@ -58,3 +58,18 @@ What it produced: a SQLite store, one atomic “take the seat only if there is r
 What I checked myself: npm test (267 pass), npm run demo:oversell, the curl examples, and a restart (data was still there).
 What the AI got wrong: (1) my first idea for the test would never have failed, because Node’s SQLite is synchronous and one process can’t race itself. The AI changed it to use separate database connections and a test with an old copy of the event. (2) The first version of “save event” could overwrite bookings made a moment earlier with an old copy. A test caught it, and the AI fixed it so only bookings can change sold. (3) A mutation check showed the “pay” step in the store was not tested on its own, so a test was added.
 What I learned: a check and a write must be one step. A database can refuse bad data itself (constraints). A test must be able to fail, or it proves nothing.
+## Build 6: Frontend on mock data
+
+**What I asked the AI:** Build a website where people can browse, filter and sort events, view an event, choose tickets, check out with a countdown, and pay with a mock card. It uses fake data only, keeps all data access in one file, and follows accessibility basics and ES modules.
+
+**What the AI produced:** A `public/` folder with a router (`main.js`), one data file (`api.js`) that holds the fake events and bookings in the same shape as my Build 4/5 API, four screens (browse, event, checkout, confirmation), helper files for money, countdown and card checks, CSS, 48 new tests, and a walkthrough in a real browser.
+
+**What I checked myself:** I ran `npm test` (316 tests pass) and opened http://localhost:3000. I browsed and filtered events, and tried a sold-out ticket type (it cannot be chosen). I paid with 4242 4242 4242 4242 (works), then with 4000 0000 0000 0002 (shows an error and lets me retry). I used /?hold=20 to watch the countdown run out.
+
+**What the AI got wrong:**
+- The event list said "From ₦5,000" for an event whose cheapest ticket type was sold out. It now shows the cheapest type that can still be bought.
+- Comments in the code mentioned `innerHTML`, a web address and a card number, and my own safety tests flagged them. The comments were reworded.
+- The mock booking has an extra field, `holdExpiresAt`, that the real API does not have yet (planned for Build 8). A test records this on purpose.
+- The first version had no favicon, so the browser showed a 404 error in the console.
+
+**What I learned:** Keeping all data access in one file means Build 7 only has to change `api.js`. User text must never go into `innerHTML`. A countdown should not be read out every second by a screen reader.

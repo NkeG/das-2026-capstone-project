@@ -97,3 +97,23 @@ test("the JSON body files the page uses all exist", () => {
   assert.ok(files.length >= 5);
   for (const f of files) assert.ok(fs.existsSync(root + f), `${f} is missing`);
 });
+
+// bad-json.json is broken ON PURPOSE (example 22 tests the "broken JSON" error).
+// Editors like VS Code show a red warning on it, and it is tempting to "fix" it. Don't.
+test("bad-json.json is still broken on purpose, and every other body file is valid JSON", () => {
+  const dir = root + "docs/api-examples/";
+  for (const name of fs.readdirSync(dir).filter((n) => n.endsWith(".json"))) {
+    const text = fs.readFileSync(dir + name, "utf8");
+    let valid = true;
+    try {
+      JSON.parse(text.replace(/^\uFEFF/, ""));
+    } catch {
+      valid = false;
+    }
+    if (name === "bad-json.json") {
+      assert.equal(valid, false, "docs/api-examples/bad-json.json must stay BROKEN. It was fixed by mistake. Undo your change to it: git checkout -- docs/api-examples/bad-json.json");
+    } else {
+      assert.equal(valid, true, `docs/api-examples/${name} must be valid JSON`);
+    }
+  }
+});
